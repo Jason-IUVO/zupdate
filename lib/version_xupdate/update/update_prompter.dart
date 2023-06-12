@@ -19,10 +19,15 @@ import 'entity/update_entity.dart';
 import 'update.dart';
 import 'update_config.dart';
 
+typedef launchFailedCallback = void Function(String failedMsg);
+
 class UpdatePrompter {
   /// 版本更新信息
   UpdateEntity? updateEntity;
   final InstallCallback? onInstall;
+  final launchFailedCallback? onLaunchFailed;
+
+  final Uri testFlightPrefix = Uri.parse('itms-beta://');
 
   UpdateDialog? _dialog;
 
@@ -52,7 +57,7 @@ class UpdatePrompter {
     }
   }
 
-  UpdatePrompter({required this.updateEntity, required this.onInstall});
+  UpdatePrompter({required this.updateEntity, required this.onInstall, this.onLaunchFailed});
 
   void setUpdateEntity(UpdateEntity entity) {
     updateEntity = entity;
@@ -117,7 +122,7 @@ class UpdatePrompter {
   Future<void> onUpdate() async {
     EasyDebounce.debounce('onUpdate', const Duration(milliseconds: 1000), () {
     if (Platform.isIOS) {
-      doInstall();
+      doiOSUpdate();
       return;
     }
     //重新下载 重置进度
@@ -277,6 +282,34 @@ class UpdatePrompter {
     // _dialog!.dismiss();
     onInstall!
         .call(_apkFile != null ? _apkFile!.path : updateEntity!.downloadUrl);
+  }
+
+  void doiOSUpdate() async {
+    if (updateEntity == null) {
+      return;
+    }
+    try {
+      var url = Uri.parse(updateEntity!.downloadUrl);
+      var testFlightUrl = Uri.parse('${testFlightPrefix}${updateEntity!.downloadUrl}');
+      var webUrl = Uri.parse('https://${updateEntity!.downloadUrl}');
+      if (await canLaunchUrl(testFlightPrefix)) {
+        launchUrl(testFlightUrl).then((value) => {
+          if (!value && onLaunchFailed != null) {
+            onLaunchFailed!('can not open url: $testFlightUrl')
+          }
+        });
+      } else {
+        launchUrl(webUrl).then((value) => {
+          if (!value && onLaunchFailed != null) {
+            onLaunchFailed!('can not open url: $webUrl')
+          }
+        });
+      }
+    } catch (e) {
+      if (onLaunchFailed != null) {
+        onLaunchFailed!('can not open url, error: $e');
+      }
+    }
   }
 
 }

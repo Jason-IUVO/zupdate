@@ -9,6 +9,8 @@ import 'entity/update_entity.dart' as XupdateEntity;
 /// 版本更新管理
 class UpdateManager {
   static UpdatePrompter? prompter;
+  
+  static launchFailedCallback? onLaunchFailed;
 
   static bool isUpdateDialogShow() {
     if (prompter == null) return false;
@@ -16,15 +18,17 @@ class UpdateManager {
   }
 
   static void checkUpdate(BuildContext context,
-      XupdateEntity.UpdateEntity params,{UpdateConfig? config}) {
+      XupdateEntity.UpdateEntity params, {UpdateConfig? config}) {
     prompter ??= UpdatePrompter(
         updateEntity: params,
         onInstall: (String filePath) {
           CommonUtils.installAPP(filePath);
-        });
+        },
+        onLaunchFailed: onLaunchFailed
+    );
     if (!isUpdateDialogShow() && !prompter!.isRetryDialogShow()) {
       prompter!.setUpdateEntity(params);
-      prompter!.show(context,config: config);
+      prompter!.show(context, config: config);
     }
   }
 
